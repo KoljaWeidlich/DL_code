@@ -8,6 +8,7 @@ Created on Tue Jun  6 11:03:52 2023
 24/10/23 Kolja: added black padding from the bottom --> final size 608x608
 31/10/23 Kolja: added scaling sigma (heatmap spreading) based on image width. Added handling of multiple trk files for one video. Added summary output
                 of processed videos. Changed trk and video file mapping strategy to make it more robust against filename discrepancies. Added error handling
+14/11/23 Kolja: changing to circle shape for both heatmaps
 """
 
 
@@ -19,6 +20,9 @@ import numpy as np #numerical operations, especially with matrices
 from tkinter import filedialog, Tk #GUI library, used here for opening file dialogs
 from PIL import Image
 import csv
+from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
+
 
 
 # This function reads the .trk file which contains tendon position information. 
@@ -122,8 +126,12 @@ def generate_heatmaps(image_shape, P_coord, D_coord, base_sigma=40):
     # Heatmap for P
     heatmap_P = np.exp(-((x - P_coord[0]) ** 2 + (y - P_coord[1]) ** 2) / (2 * sigma ** 2))
     
-    # Elliptical heatmap for D
-    heatmap_D = np.exp(-((x - D_coord[0]) ** 2 / (2 * (2*sigma) ** 2) + (y - D_coord[1]) ** 2 / (2 * sigma ** 2)))
+    # Heatmap for D
+    heatmap_D = np.exp(-((x - D_coord[0]) ** 2 + (y - D_coord[1]) ** 2) / (2 * sigma ** 2))
+    
+    # # Elliptical heatmap for D
+    # heatmap_D = np.exp(-((x - D_coord[0]) ** 2 / (2 * (2*sigma) ** 2) + (y - D_coord[1]) ** 2 / (2 * sigma ** 2)))
+    
     
     # Normalize the heatmaps
     # heatmap is normalized by dividing every pixel value by the maximum value in the heatmap. 
@@ -149,6 +157,8 @@ def forward_slash_path(path):
 #     The video is read frame by frame.
 #     For each frame, tendon positions are extracted and heatmaps are generated.
 #     The original frame and the generated heatmaps are saved as images.
+
+
 
 def VideoToHeatmaps():
     root = Tk()
