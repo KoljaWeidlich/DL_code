@@ -3,7 +3,6 @@
 Created on Tue Jun  6 11:03:52 2023
 
 @author: Kolja 'Kotti' Weidlich
-18/10/23 Arno 'Alu' Schroll joins the Deep Learning addiction
 23/10/23 Kolja: Addition of different heatmaps for P and D. P remains a circle, D becomes more elliptical
 23/10/23 Kolja: remove irrelevant information by cropping 192 pixels in x direction(from left to right), and -128 pixels y-direction (from top and bottom) 
 24/10/23 Kolja: added black padding from the bottom --> final size 608x608

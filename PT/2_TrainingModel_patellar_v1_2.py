@@ -3,7 +3,7 @@
 Created on Tue Jun  6 11:03:52 2023
 
 @author: Kolja 'Kotti' Weidlich
-23/10/23 Kolja: now training on cropped, padded and resized images (original 608x800 --> 512x512)
+23/10/23 Kolja: now training on cropped, padded and resized images (original 608x800 --> 608x608)
 24/10/23 Kolja: made the finding of step_per_epoch parameter more robust to user error -.-'
 3/11/23 Kolja: Changed image loading to be more robust against corrupted image files. changed dataset splitting (training and validation set).
                 Added more documentation (tensorboard logging)

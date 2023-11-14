@@ -24,7 +24,19 @@ import os
 
 # Load the trained model
 def load_trained_model(model_path):
-    return load_model(model_path)
+    custom_objects = {'dice_coefficient': dice_coefficient}
+    return load_model(model_path, custom_objects=custom_objects)
+
+
+def dice_coefficient(y_true, y_pred):
+    smooth = 1.
+    # Flatten
+    y_true_f = tf.reshape(y_true, [-1])
+    y_pred_f = tf.reshape(y_pred, [-1])
+    intersection = tf.reduce_sum(y_true_f * y_pred_f)
+    score = (2. * intersection + smooth) / (tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f) + smooth)
+    return score
+
 
 # Preprocess the input image
 def preprocess_image(img_path, target_size=(608, 608)):
@@ -118,8 +130,8 @@ def predict_videos_action():
     # Prompt user to select a folder to save .csv files
     csv_save_directory = filedialog.askdirectory(title="Select a folder to save the CSV files")
     
-    # # Prompt user to select a folder to save plots
-    # plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
+    # Prompt user to select a folder to save plots
+    plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
 
     # Allow user to select multiple video files
     video_paths = filedialog.askopenfilenames(title="Select videos for prediction", filetypes=[("Video files", "*.avi;*.mp4")])
@@ -149,10 +161,10 @@ def predict_videos_action():
 
                 results.append([video_name, frame_counter, coord_p[0], coord_p[1], coord_d[0], coord_d[1]])
                 
-                # # Visualization
-                # visualize_predictions_with_coordinates(frame_path, predictions)
-                # # Save the plot
-                # plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
+                # Visualization
+                visualize_predictions_with_coordinates(frame_path, predictions)
+                # Save the plot
+                plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
                 frame_counter += 1  # Increment the frame counter
             # Save the results for the current video in a .csv file
             csv_filename = os.path.join(csv_save_directory, f"{video_name}.csv")
