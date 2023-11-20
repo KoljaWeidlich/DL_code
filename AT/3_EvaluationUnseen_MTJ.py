@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
+# import pandas as pd
 import cv2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
@@ -11,15 +11,32 @@ import os
 
 # Load the trained model
 def load_trained_model(model_path):
-    return load_model(model_path)
+    custom_objects = {'dice_coefficient': dice_coefficient}
+    return load_model(model_path, custom_objects=custom_objects)
+
+def dice_coefficient(y_true, y_pred):
+    smooth = 1.
+    # Flatten
+    y_true_f = tf.reshape(y_true, [-1])
+    y_pred_f = tf.reshape(y_pred, [-1])
+    intersection = tf.reduce_sum(y_true_f * y_pred_f)
+    score = (2. * intersection + smooth) / (tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f) + smooth)
+    return score
 
 # Preprocess the input image
-def preprocess_image(img_path, target_size=(608, 800)):
-    img = image.load_img(img_path, target_size=target_size)
+def preprocess_image(img_path, target_size=(608, 608)):
+    img = image.load_img(img_path)
     img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)  # Convert single image to a batch
-    img_array /= 255.  # Normalize to [0,1]
-    return img_array
+    
+    # Crop the image
+    cropped_img_array = img_array[:-180, 190:-190]
+    
+    # Resize
+    resized_img_array = cv2.resize(cropped_img_array, (608, 608))
+    
+    resized_img_array = np.expand_dims(resized_img_array, axis=0)  # Convert single image to a batch
+    resized_img_array /= 255.  # Normalize to [0,1]
+    return resized_img_array
 
 # Predict heatmaps using the model
 def predict(img_path):
@@ -35,12 +52,9 @@ def visualize_predictions(img_path, predictions):
 
     # Visualize the predicted heatmaps
     plt.imshow(predictions[0, :, :, 0], cmap='hot', alpha=0.5)
-    plt.title("Predicted Heatmap for 'P'")
+    plt.title("Predicted Heatmap for 'MTJ'")
     plt.show()
 
-    plt.imshow(predictions[0, :, :, 1], cmap='hot', alpha=0.5)
-    plt.title("Predicted Heatmap for 'D'")
-    plt.show()
 
 # GUI actions
 def load_model_action():
@@ -63,44 +77,47 @@ def heatmap_to_coordinates(heatmap):
 
 
 def visualize_predictions_with_coordinates(img_path, predictions):
-    # Load the original image
-    original_image = tf.keras.preprocessing.image.load_img(img_path)
     
-    # Get coordinates from the heatmaps
-    coord_p = heatmap_to_coordinates(predictions[0, :, :, 0])
-    coord_d = heatmap_to_coordinates(predictions[0, :, :, 1])
+    # Load the preprocessed image
+    preprocessed_image_array = preprocess_image(img_path)
+    
+    # Convert array to a viewable image
+    preprocessed_image = tf.keras.preprocessing.image.array_to_img(preprocessed_image_array[0])
+    
+    # Get coordinates from the heatmap
+    coord_MTJ = heatmap_to_coordinates(predictions[0, :, :, 0])
+
 
     # Print the coordinates
-    print(f"Coordinate for P: {coord_p}")
-    print(f"Coordinate for D: {coord_d}")
+    print(f"Coordinate for MTJ: {coord_MTJ}")
 
-    # Plot the original image with overlaid coordinates
+
+    # Plot the preprocessed image with overlaid coordinates
     plt.figure(figsize=(15, 5))
     
-    # 1. Original image with overlaid coordinates
-    plt.subplot(1, 3, 1)
-    plt.imshow(original_image)
-    plt.scatter(*coord_p, c='r', s=10, marker='o', label='P')  # P in red color
-    plt.scatter(*coord_d, c='b', s=10, marker='x', label='D')  # D in blue color
+    # 1. Preprocessed image with overlaid coordinates
+    plt.subplot(1, 2, 1)
+    plt.imshow(preprocessed_image)
+    plt.scatter(*coord_MTJ, c='r', s=10, marker='o', label='MTJ')  # P in red color
     plt.legend()
-    plt.title("Original Image with Coordinates")
+    plt.title("Preprocessed Image with Coordinates")
 
-    # 2. Predicted heatmap for P
-    plt.subplot(1, 3, 2)
+    # 2. Predicted heatmap for MTJ
+    plt.subplot(1, 2, 2)
     plt.imshow(predictions[0, :, :, 0], cmap='hot', interpolation='nearest')
-    plt.title("Predicted Heatmap for P")
+    plt.title("Predicted Heatmap for MTJ")
 
-    # 3. Predicted heatmap for D
-    plt.subplot(1, 3, 3)
-    plt.imshow(predictions[0, :, :, 1], cmap='hot', interpolation='nearest')
-    plt.title("Predicted Heatmap for D")
 
     plt.tight_layout()
     plt.show()
 
+
 def predict_videos_action():
     # Prompt user to select a folder to save .csv files
     csv_save_directory = filedialog.askdirectory(title="Select a folder to save the CSV files")
+    
+    # Prompt user to select a folder to save plots
+    plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
 
     # Allow user to select multiple video files
     video_paths = filedialog.askopenfilenames(title="Select videos for prediction", filetypes=[("Video files", "*.avi;*.mp4")])
@@ -112,7 +129,7 @@ def predict_videos_action():
 
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
             frame_path = temp_file.name
-
+            frame_counter = 0  # Initialize a frame counter
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
@@ -125,17 +142,23 @@ def predict_videos_action():
                 predictions = predict(frame_path)
 
                 # Extracting coordinates from the heatmaps
-                coord_p = heatmap_to_coordinates(predictions[0, :, :, 0])
-                coord_d = heatmap_to_coordinates(predictions[0, :, :, 1])
+                coord_MTJ = heatmap_to_coordinates(predictions[0, :, :, 0])
 
-                results.append([video_name, frame, coord_p[0], coord_p[1], coord_d[0], coord_d[1]])
-
+                results.append([video_name, frame_counter, coord_MTJ[0], coord_MTJ[1]])
+                
+                # Visualization
+                visualize_predictions_with_coordinates(frame_path, predictions)
+                # Save the plot
+                plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
+                frame_counter += 1  # Increment the frame counter
             # Save the results for the current video in a .csv file
             csv_filename = os.path.join(csv_save_directory, f"{video_name}.csv")
             with open(csv_filename, 'w') as csv_file:
-                csv_file.write("Video_Name, Frame, P_x, P_y, D_x, D_y\n")  # Header
+                csv_file.write("Video_Name, Frame, MTJ_x, MTJ_y\n")  # Header
                 for result in results:
-                    csv_file.write(f"{result[0]}, {result[1]}, {result[2]}, {result[3]}, {result[4]}, {result[5]}\n")
+                    csv_file.write(f"{result[0]}, {result[1]}, {result[2]}, {result[3]}\n")
+
+
 
 # Main execution
 if __name__ == "__main__":
