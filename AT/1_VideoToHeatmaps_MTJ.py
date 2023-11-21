@@ -3,6 +3,7 @@
 Created on Tue Oct 17 20:33:46 2023
 
 @author: Kotti
+Image sharpening
 """
 
 import os
