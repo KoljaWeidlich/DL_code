@@ -3,7 +3,7 @@
 Created on Tue Oct 17 20:33:46 2023
 
 @author: Kotti
-Image sharpening
+22/11/2023 added Image sharpening and de-speckling (Lee filter)
 """
 
 import os
@@ -13,6 +13,7 @@ from tkinter import filedialog, Tk
 from scipy.io import loadmat
 import multiprocessing
 from tqdm import tqdm
+from skimage.restoration import denoise_nl_means, estimate_sigma
 
 # from scipy.interpolate import interp1d
 
@@ -67,6 +68,33 @@ def generate_heatmap(image_shape, coord, base_sigma=20):
 def forward_slash_path(path):
     return path.replace("\\", "/")
 
+# De-speckling filter
+def lee_filter(image, window_size=5, weight=0.4):
+    """
+    Apply the Lee de-speckling filter to the image.
+
+    :param image: Input image
+    :param window_size:
+        This parameter defines the size of the local neighborhood around each pixel where local statistics (like mean and variance) are calculated.
+        A larger window size will consider more surrounding pixels for calculating the mean and variance, leading to stronger smoothing. However, this can also blur fine details.
+        A smaller window size will be less effective in noise reduction but can preserve more details.
+        The window size should be an odd number (like 5, 7, 9, etc.) to ensure a symmetric neighborhood around each pixel.
+        This parameter controls how much the filter smoothens the image based on the local variance.
+    :param weight: (0 to 1, strong to little smoothing )
+        The weight is a factor applied to the local variance of the image within the window. It determines the balance between the original image and the local mean.
+        A higher weight gives more importance to the local variance, leading to less smoothing in areas with high variance (typically edges or detailed regions) and more smoothing in areas with low variance (usually homogeneous regions).
+        Adjusting this parameter can help in preserving edges and fine details while reducing noise.
+    :return: De-speckled image
+    """
+    mean_img = cv2.blur(image, (window_size, window_size))
+    mean_sqr_img = cv2.blur(np.square(image), (window_size, window_size))
+    var_img = mean_sqr_img - np.square(mean_img)
+
+    a = weight * var_img
+    b = a / (a + np.square(mean_img))
+
+    return mean_img + b * (image - mean_img)
+
 def process_video(args):
     mat_file, save_directory, heatmap_directory, csv_directory, original_image_directory = args
     video_name, mtj_positions = extract_MTJ_positions_from_mat(mat_file)
@@ -97,10 +125,20 @@ def process_video(args):
             # Crop from top and both sides
             cropped_frame = frame[:-180, 190:-190]
             cropped_heatmap = heatmap[:-180, 190:-190]
+            # Apply Lee filter for de-speckling
+            de_speckled_frame = lee_filter(cropped_frame)
 
             # Resize the cropped images to 608x608
-            resized_frame = cv2.resize(cropped_frame, (608, 608))
+            resized_frame = cv2.resize(de_speckled_frame, (608, 608))
             resized_heatmap = cv2.resize(cropped_heatmap, (608, 608))
+            # Image sharpening
+            # Define a sharpening kernel
+            sharpening_kernel = np.array([[0, -1, 0],
+                                          [-1, 5, -1],
+                                          [0, -1, 0]])
+    
+            # Apply the sharpening filter to the resized frame
+            sharpened_frame = cv2.filter2D(resized_frame, -1, sharpening_kernel)
 
             # Save the cropped and resized frame and heatmap
             original_image_filename = os.path.join(
@@ -108,7 +146,7 @@ def process_video(args):
             heatmap_filename = os.path.join(
                 heatmap_directory, f"{video_name_short}_frame_{frame_count}_heatmap.png")
 
-            cv2.imwrite(original_image_filename, resized_frame)
+            cv2.imwrite(original_image_filename, sharpened_frame)
             cv2.imwrite(heatmap_filename,
                         (resized_heatmap * 255).astype(np.uint8))
 

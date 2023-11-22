@@ -3,7 +3,7 @@
 Created on Tue Oct 17 20:33:46 2023
 
 @author: Kotti
-add Image sharpening
+22/11/2023 added Image sharpening
 """
 
 
@@ -43,10 +43,18 @@ def preprocess_image(img_path, target_size=(608, 608)):
     
     # Resize
     resized_img_array = cv2.resize(cropped_img_array, (608, 608))
+    # Image sharpening
+    # Define a sharpening kernel
+    sharpening_kernel = np.array([[0, -1, 0],
+                                  [-1, 5, -1],
+                                  [0, -1, 0]])
+
+    # Apply the sharpening filter to the resized frame
+    sharpened_img_array = cv2.filter2D(resized_img_array, -1, sharpening_kernel)
     
-    resized_img_array = np.expand_dims(resized_img_array, axis=0)  # Convert single image to a batch
-    resized_img_array /= 255.  # Normalize to [0,1]
-    return resized_img_array
+    sharpened_img_array = np.expand_dims(sharpened_img_array, axis=0)  # Convert single image to a batch
+    sharpened_img_array /= 255.  # Normalize to [0,1]
+    return sharpened_img_array
 
 # Predict heatmaps using the model
 def predict(img_path):
@@ -153,9 +161,12 @@ def predict_videos_action():
 
                 # Extracting coordinates from the heatmaps
                 coord_MTJ = heatmap_to_coordinates(predictions[0, :, :, 0])
-
-                results.append([video_name, frame_counter, coord_MTJ[0], coord_MTJ[1]])
                 
+                # Add the cropped values back to the coordinates
+                coord_MTJ_adjusted = (coord_MTJ[0] + 190, coord_MTJ[1] + 180)  # Adjust based on your cropping values
+
+                results.append([video_name, frame_counter, coord_MTJ_adjusted[0], coord_MTJ_adjusted[1]])
+                      
                 # Visualization
                 visualize_predictions_with_coordinates(frame_path, predictions)
                 # Save the plot
