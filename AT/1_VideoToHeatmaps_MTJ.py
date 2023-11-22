@@ -13,7 +13,7 @@ from tkinter import filedialog, Tk
 from scipy.io import loadmat
 import multiprocessing
 from tqdm import tqdm
-from skimage.restoration import denoise_nl_means, estimate_sigma
+#from skimage.restoration import denoise_nl_means, estimate_sigma
 
 # from scipy.interpolate import interp1d
 
@@ -69,7 +69,7 @@ def forward_slash_path(path):
     return path.replace("\\", "/")
 
 # De-speckling filter
-def lee_filter(image, window_size=5, weight=0.4):
+def lee_filter(image, window_size=1, weight=1):
     """
     Apply the Lee de-speckling filter to the image.
 
@@ -91,7 +91,9 @@ def lee_filter(image, window_size=5, weight=0.4):
     var_img = mean_sqr_img - np.square(mean_img)
 
     a = weight * var_img
-    b = a / (a + np.square(mean_img))
+    epsilon = 1e-10  # A small constant to prevent division by zero
+    b = a / (a + np.square(mean_img) + epsilon)
+ 
 
     return mean_img + b * (image - mean_img)
 
