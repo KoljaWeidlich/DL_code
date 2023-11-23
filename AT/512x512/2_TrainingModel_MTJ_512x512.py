@@ -207,7 +207,7 @@ if __name__ == "__main__":
     if should_load_previous_model.lower() == 'yes':
         model = load_previous_model()
     else:
-        model = build_vgg_unet((608, 608, 3)) 
+        model = build_vgg_unet((512, 512, 3)) 
         
     # Ask the user if they want to check for corrupted images
     should_check_corruption = input("Do you want to check for corrupted images? (yes/no): ").lower()
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     
     
     # Model Checkpoint
-    checkpoint = ModelCheckpoint('best_weights_AT_Sharped_1_epoch_20.h5', save_best_only=True, save_weights_only=False, monitor='loss', mode='min', verbose=1)
+    checkpoint = ModelCheckpoint('best_weights_AT_512x512_1_epoch_20.h5', save_best_only=True, save_weights_only=False, monitor='loss', mode='min', verbose=1)
     # Set the directory to write the TensorBoard logs
     log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
