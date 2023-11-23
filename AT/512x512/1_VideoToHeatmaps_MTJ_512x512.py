@@ -129,18 +129,17 @@ def process_video(args):
             cropped_heatmap = heatmap[:-262, 190:-190]
             
             # Add padding to the bottom to make the images square
-            padding_shape = (392 - cropped_frame.shape[0])
-            padded_frame = cv2.copyMakeBorder(cropped_frame, 0, padding_shape[0], 0, 0, cv2.BORDER_CONSTANT, value=(0,0,0))
-            
-            padded_heatmap = cv2.copyMakeBorder(cropped_heatmap, 0, padding_shape[0], 0, 0, cv2.BORDER_CONSTANT, value=0)
-            
-            
+            padding_size = 260 - cropped_frame.shape[0]
+            padded_frame = cv2.copyMakeBorder(cropped_frame, 0, padding_size, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+            padded_heatmap = cv2.copyMakeBorder(cropped_heatmap, 0, padding_size, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
             # Apply Lee filter for de-speckling
             de_speckled_frame = lee_filter(padded_frame)
 
             # Resize the cropped images to 512x512
             resized_frame = cv2.resize(de_speckled_frame, (512, 512))
             resized_heatmap = cv2.resize(padded_heatmap, (512, 512))
+
             # Image sharpening
             # Define a sharpening kernel
             sharpening_kernel = np.array([[0, -1, 0],
