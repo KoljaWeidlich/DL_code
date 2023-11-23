@@ -34,15 +34,17 @@ def dice_coefficient(y_true, y_pred):
     return score
 
 # Preprocess the input image
-def preprocess_image(img_path, target_size=(608, 608)):
+def preprocess_image(img_path, target_size=(512, 512)):
     img = image.load_img(img_path)
     img_array = image.img_to_array(img)
     
     # Crop the image
-    cropped_img_array = img_array[:-180, 190:-190]
-    
+    cropped_img_array = img_array[:-262, 190:-190]
+    # Add padding to the bottom to make the images square
+    padding_size = 260 - cropped_img_array.shape[0]
+    padded_frame = cv2.copyMakeBorder(cropped_img_array, 0, padding_size, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
     # Resize
-    resized_img_array = cv2.resize(cropped_img_array, (608, 608))
+    resized_img_array = cv2.resize(padded_frame, (512, 512))
     # Image sharpening
     # Define a sharpening kernel
     sharpening_kernel = np.array([[0, -1, 0],
@@ -80,6 +82,12 @@ def load_model_action():
     model_path = filedialog.askdirectory(title="Select the trained model")
     model = load_trained_model(model_path)
     lbl.configure(text="Model Loaded!")
+    
+def load_model_action_h5():
+    global model
+    model_path = filedialog.askopenfilename(title="Select the trained model .h5 file")
+    model = load_trained_model(model_path)
+    lbl.configure(text="Model Loaded!")    
 
 def load_and_predict_action():
     test_image_path = filedialog.askopenfilename(title="Select an image for prediction")
@@ -163,7 +171,7 @@ def predict_videos_action():
                 coord_MTJ = heatmap_to_coordinates(predictions[0, :, :, 0])
                 
                 # Add the cropped values back to the coordinates
-                coord_MTJ_adjusted = (coord_MTJ[0] + 190, coord_MTJ[1] + 180)  # Adjust based on your cropping values
+                coord_MTJ_adjusted = (coord_MTJ[0] + 190, coord_MTJ[1] + 262)  # Adjust based on your cropping values
 
                 results.append([video_name, frame_counter, coord_MTJ_adjusted[0], coord_MTJ_adjusted[1]])
                       
@@ -189,7 +197,10 @@ if __name__ == "__main__":
     lbl = Label(root, text="Load your model and then select an image or video for prediction")
     lbl.pack(pady=20)
 
-    load_model_btn = Button(root, text="Load Model", command=load_model_action)
+    load_model_btn = Button(root, text="Load Model (from folder)", command=load_model_action)
+    load_model_btn.pack(pady=20)
+    
+    load_model_btn = Button(root, text="Load Model (from .h5 file)", command=load_model_action_h5)
     load_model_btn.pack(pady=20)
 
     predict_image_btn = Button(root, text="Select Image and Predict", command=load_and_predict_action)
