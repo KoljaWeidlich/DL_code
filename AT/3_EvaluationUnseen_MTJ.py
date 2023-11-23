@@ -135,7 +135,7 @@ def predict_videos_action():
     csv_save_directory = filedialog.askdirectory(title="Select a folder to save the CSV files")
     
     # Prompt user to select a folder to save plots
-    plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
+    #plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
 
     # Allow user to select multiple video files
     video_paths = filedialog.askopenfilenames(title="Select videos for prediction", filetypes=[("Video files", "*.avi;*.mp4")])
@@ -145,7 +145,7 @@ def predict_videos_action():
         cap = cv2.VideoCapture(video_path)
         results = []
 
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
             frame_path = temp_file.name
             frame_counter = 0  # Initialize a frame counter
             while cap.isOpened():
@@ -170,7 +170,7 @@ def predict_videos_action():
                 # Visualization
                 visualize_predictions_with_coordinates(frame_path, predictions)
                 # Save the plot
-                plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
+                #plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
                 frame_counter += 1  # Increment the frame counter
             # Save the results for the current video in a .csv file
             csv_filename = os.path.join(csv_save_directory, f"{video_name}.csv")

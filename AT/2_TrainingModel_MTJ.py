@@ -262,7 +262,7 @@ if __name__ == "__main__":
     
     
     # Model Checkpoint
-    checkpoint = ModelCheckpoint('best_weights_AT_block_1_epoch_20.h5', save_best_only=True, save_weights_only=False, monitor='loss', mode='min', verbose=1)
+    checkpoint = ModelCheckpoint('best_weights_AT_Sharped_1_epoch_20.h5', save_best_only=True, save_weights_only=False, monitor='loss', mode='min', verbose=1)
     # Set the directory to write the TensorBoard logs
     log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
