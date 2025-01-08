@@ -110,7 +110,7 @@ def map_trk_to_videos(trk_files, video_files):
 def generate_heatmaps(image_shape, P_coord, D_coord, base_sigma=40):
     """
     Generate heatmaps for given coordinates with Gaussian distributions.
-    Returns a tuple of two heatmaps: one for P and an elliptical one for D.
+    Returns a tuple of two heatmaps: one for P and one for D.
     """
     x = np.arange(0, image_shape[1], 1, float)  # Width
     y = np.arange(0, image_shape[0], 1, float)  # Height
