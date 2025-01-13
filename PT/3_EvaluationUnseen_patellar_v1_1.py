@@ -84,11 +84,47 @@ def heatmap_to_coordinates(heatmap):
     y, x = np.unravel_index(np.argmax(heatmap), heatmap.shape)
     return x, y
 
-def visualize_predictions_with_coordinates(img_path, predictions):
+def map_coordinates_to_original(coord, preprocessed_shape, original_shape, crop_x=192, crop_y_top=128, crop_y_bottom=128):
+    """
+    Map coordinates from the preprocessed image back to the original image dimensions.
     
+    Args:
+        coord (tuple): Coordinates (x, y) in the preprocessed image.
+        preprocessed_shape (tuple): Shape of the preprocessed image (height, width).
+        original_shape (tuple): Shape of the original image (height, width).
+        crop_x (int): Amount of cropping applied from the left on the x-axis.
+        crop_y_top (int): Amount of cropping applied from the top on the y-axis.
+        crop_y_bottom (int): Amount of cropping applied from the bottom on the y-axis.
+
+    Returns:
+        tuple: Mapped coordinates (x, y) in the original image.
+    """
+    # Extract the width and height of the cropped region
+    cropped_width = original_shape[1] - crop_x
+    cropped_height = original_shape[0] - crop_y_top - crop_y_bottom
+
+    # Calculate scale factors
+    scale_x = cropped_width / preprocessed_shape[1]
+    scale_y = cropped_height / preprocessed_shape[0]
+
+    # Map coordinates from preprocessed to original dimensions
+    x_original = coord[0] * scale_x + crop_x
+    y_original = original_shape[0] - (coord[1] * scale_y + crop_y_top)
+
+    return int(round(x_original)), int(round(y_original))
+
+
+
+
+def visualize_predictions_with_coordinates(img_path, predictions):
+    # Load the original image for dimension reference
+    original_image = image.load_img(img_path)
+    original_shape = original_image.size[::-1]  # PIL size is (width, height), reverse it for (height, width)
+
     # Load the preprocessed image
     preprocessed_image_array = preprocess_image(img_path)
-    
+    preprocessed_shape = preprocessed_image_array.shape[1:3]  # Get height and width
+
     # Convert array to a viewable image
     preprocessed_image = tf.keras.preprocessing.image.array_to_img(preprocessed_image_array[0])
     
@@ -96,9 +132,15 @@ def visualize_predictions_with_coordinates(img_path, predictions):
     coord_p = heatmap_to_coordinates(predictions[0, :, :, 0])
     coord_d = heatmap_to_coordinates(predictions[0, :, :, 1])
 
+    # Map coordinates to original image dimensions
+    coord_p_original = map_coordinates_to_original(coord_p, preprocessed_shape, original_shape)
+    coord_d_original = map_coordinates_to_original(coord_d, preprocessed_shape, original_shape)
+
     # Print the coordinates
-    print(f"Coordinate for P: {coord_p}")
-    print(f"Coordinate for D: {coord_d}")
+    print(f"Coordinate for P (preprocessed): {coord_p}")
+    print(f"Coordinate for D (preprocessed): {coord_d}")
+    print(f"Coordinate for P (original): {coord_p_original}")
+    print(f"Coordinate for D (original): {coord_d_original}")
 
     # Plot the preprocessed image with overlaid coordinates
     plt.figure(figsize=(15, 5))
@@ -124,14 +166,19 @@ def visualize_predictions_with_coordinates(img_path, predictions):
     plt.tight_layout()
     plt.show()
 
+    return coord_p_original, coord_d_original
+
 
 
 def predict_videos_action():
     # Prompt user to select a folder to save .csv files
     csv_save_directory = filedialog.askdirectory(title="Select a folder to save the CSV files")
     
-    # Prompt user to select a folder to save plots
-    plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
+    # Prompt user to select a folder to save plots (optional)
+    save_plots = input("Do you want to save plots? (yes/no): ").strip().lower() == "yes"
+    plot_save_directory = None
+    if save_plots:
+        plot_save_directory = filedialog.askdirectory(title="Select a folder to save the plots")
 
     # Allow user to select multiple video files
     video_paths = filedialog.askopenfilenames(title="Select videos for prediction", filetypes=[("Video files", "*.avi;*.mp4")])
@@ -159,19 +206,39 @@ def predict_videos_action():
                 coord_p = heatmap_to_coordinates(predictions[0, :, :, 0])
                 coord_d = heatmap_to_coordinates(predictions[0, :, :, 1])
 
-                results.append([video_name, frame_counter, coord_p[0], coord_p[1], coord_d[0], coord_d[1]])
+                # Map coordinates to original image dimensions
+                original_shape = frame.shape[:2]  # (height, width)
+                preprocessed_shape = (608, 608)
+                coord_p_original = map_coordinates_to_original(coord_p, preprocessed_shape, original_shape)
+                coord_d_original = map_coordinates_to_original(coord_d, preprocessed_shape, original_shape)
+
+                results.append([
+                    video_name,
+                    frame_counter,
+                    coord_p_original[0], coord_p_original[1],
+                    coord_d_original[0], coord_d_original[1]
+                ])
                 
-                # Visualization
-                visualize_predictions_with_coordinates(frame_path, predictions)
-                # Save the plot
-                plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
+                # Visualization (if enabled)
+                if save_plots:
+                    visualize_predictions_with_coordinates(frame_path, predictions)
+                    plt.savefig(os.path.join(plot_save_directory, f"{video_name}_frame_{frame_counter}.png"))
+
                 frame_counter += 1  # Increment the frame counter
+
             # Save the results for the current video in a .csv file
             csv_filename = os.path.join(csv_save_directory, f"{video_name}.csv")
             with open(csv_filename, 'w') as csv_file:
-                csv_file.write("Video_Name, Frame, P_x, P_y, D_x, D_y\n")  # Header
+                csv_file.write("Video_Name, Frame, P_x_original, P_y_original, D_x_original, D_y_original\n")  # Header
                 for result in results:
                     csv_file.write(f"{result[0]}, {result[1]}, {result[2]}, {result[3]}, {result[4]}, {result[5]}\n")
+
+
+        # Clean up temporary file
+        if os.path.exists(frame_path):
+            os.unlink(frame_path)
+
+            
 
 
 
